@@ -1,0 +1,89 @@
+def cal_jub_FIN_U_M(
+        p,
+        k,
+        channel,
+        wait_before_measure =0.5,
+        measure_delay = MEAS_SLEEP,
+        measure_count =MEAS_COUNT):
+    
+    # pmu initialisation- all channels turned off and reset , initial default
+    p.write_all_PMU_REGS(pmu_reg_channel_off)
+    pmu_reg_channel_on_sys = 0x21fc60
+
+    print("FIN_U_M CALIBRATION for channel %i" % channel)
+    pmu_ch = p.channels[channel]
+
+    OFFSET = pmu_ch.read_dac("Offset")
+    
+    FIN_U_M = pmu_ch.read_dac("FIN_U","M")
+    #print(FIN_U_M)
+
+
+    #SMU SETUP
+    k.display.screen            = k.display.SMUA
+    k.display.smua.measure.func = k.display.MEASURE_DCVOLTS
+    k.smua.measure.autorangev   = k.smua.AUTORANGE_ON
+    k.smua.measure.nplc = MEAS_NPLC
+
+    k.smua.source.func          = k.smua.OUTPUT_DCAMPS
+    k.smua.source.leveli        = 0
+    k.smua.source.limiti        = 1e-3
+    k.smua.source.limitv        = 20
+    k.smua.source.output        = k.smua.OUTPUT_ON
+
+    pmu_ch.pmu_reg = pmu_reg_channel_on_sys
+
+    # zero calibration
+    dac_max = 0xFFFF
+    v_high = pmu_calc_jub.dac_to_v(dac_max,OFFSET)  # Expected voltage corresponding to 0xFFFF without any calibration ---> From the equation
+    #print(v_high)
+
+    #  Writing zero calibration to the value to x1
+
+    pmu_ch.write_dac(dac_max, dac_reg ="FIN_U")  # The value is by default assisgned to reg = "X1"
+    sleep(wait_before_measure)
+    meas_max = measure_jub(k,measure_delay,measure_count)   # Measured voltage corresponding to 0xFFFF without any calibration ---> From Keithley measurement
+    #print (meas_max)
+
+    NEW_FIN_U_M = round(FIN_U_M * (v_high/meas_max))
+
+    print("\tNEW_FIN_U_M = FIN_U_M * (Zero_offset_output for 0xFFFF.....Expected Value Value/Zero_Offset_output for 0xFFFF......Measured Value)")
+    print("\t%i = %i * (%sV/%sV)"  %(
+        NEW_FIN_U_M,
+        FIN_U_M,
+        si_format(v_high,precision = 3),
+        si_format(meas_max,precision = 3)
+        ))
+    
+    if NEW_FIN_U_M > 0xFFFF:
+        NEW_FIN_U_M = 0xFFFF
+
+    pmu_ch.write_dac(NEW_FIN_U_M,dac_reg = "FIN_U",reg = "M")
+    pmu_ch.write_dac(dac_max,dac_reg = "FIN_U")
+    sleep(wait_before_measure)
+
+    meas_max_cal = measure_jub(k,measure_delay,measure_count)
+    print("V_MAX after Calibration = %sV" % si_format(meas_max_cal,precision=3))
+
+    ##Jubin_FINAL_CALIBRATION_M_
+    new_FIN_U_M = NEW_FIN_U_M
+    FIN_M_uncalibrated = FIN_U_M
+    expected_measurement_M = v_high
+    measured_value_M = meas_max
+    measured_value_after_cal_m = meas_max_cal
+    m_m = (measured_value_after_cal_m - measured_value_M)/(new_FIN_U_M-FIN_M_uncalibrated)
+
+    b_m =  measured_value_M - (m_m*(FIN_M_uncalibrated))
+
+    desired_FIN_M = (expected_measurement_M +b_m) / m_m
+
+    print(desired_FIN_M)
+
+    NEW_FIN_U_M = desired_FIN_M
+
+
+
+    pmu_ch.pmu_reg = pmu_reg_channel_off
+    k.smua.source.output = k.smua.OUTPUT_OFF
+    
+    return NEW_FIN_U_M

@@ -1,0 +1,88 @@
+def cal_jub_FIN_U_C(
+            p,
+            k,
+            channel,
+            wait_before_measure = 0.5,
+            measure_delay=MEAS_SLEEP,
+            measure_count=MEAS_COUNT ):
+    
+    # pmu initialisation- all channels turned off and reset , initial default
+    p.write_all_PMU_REGS(pmu_reg_channel_off)
+    pmu_reg_channel_on_sys = 0x21fc60
+
+    # INTRO
+    print("FIN_U_C CALIBRATION for channel %i" % channel)
+    pmu_ch = p.channels[channel]
+
+    LSB_SIZE_V = 4.5 * pmu_def_jub.VREF / (2**16)
+    OFFSET = pmu_ch.read_dac("Offset")
+    FIN_U_C = pmu_ch.read_dac("FIN_U","C")
+    print(FIN_U_C)
+
+    # SMU SETUP
+    k.display.screen            = k.display.SMUA
+    k.display.smua.measure.func = k.display.MEASURE_DCVOLTS
+    k.smua.measure.autorangev   = k.smua.AUTORANGE_ON
+    k.smua.measure.nplc = MEAS_NPLC
+
+    k.smua.source.func          = k.smua.OUTPUT_DCAMPS
+    k.smua.source.leveli        = 0
+    k.smua.source.limiti        = 1e-3
+    k.smua.source.limitv        = 20
+    k.smua.source.output        = k.smua.OUTPUT_ON
+
+
+    pmu_ch.pmu_reg = pmu_reg_channel_on_sys
+
+    # zero calibration
+
+    dac_zero = pmu_calc_jub.v_to_dac(0,OFFSET)
+    v_zero = pmu_calc_jub.dac_to_v(dac_zero ,OFFSET)
+    print(v_zero)
+    print(dac_zero)
+
+    # Writing zero calibration value to X1
+
+    pmu_ch.write_dac(dac_zero, dac_reg = "FIN_U")
+    sleep(wait_before_measure)
+    meas_zero = measure_jub(k,measure_delay, measure_count)
+    print(meas_zero)
+
+    NEW_FIN_U_C = round(FIN_U_C - (meas_zero/LSB_SIZE_V))
+
+    print("\tNEW_FIN_U_C = FIN_U_C - (Zero_offset_output/LSB) ")
+    print("\t%i = %i - (%sV / %sV)"%(
+        NEW_FIN_U_C,
+        FIN_U_C,
+        si_format(meas_zero,precision=3),
+        si_format(LSB_SIZE_V,precision=3)
+        ))
+    
+    pmu_ch.write_dac(data = NEW_FIN_U_C, dac_reg = "FIN_U" ,reg = "C")
+    pmu_ch.write_dac(data = dac_zero, dac_reg = "FIN_U")
+    sleep(wait_before_measure)
+    meas_zero_cal = measure_jub(k,measure_delay, measure_count)
+    print(meas_zero_cal)
+    print("\tOutput Voltage after Calibration = %sv" % si_format(meas_zero_cal,precision = 3))
+
+    ## JUBIN_FINAL_CALIBRATION _C_
+    new_FIN_U_C = NEW_FIN_U_C 
+    FIN_U_C_uncalibrated = FIN_U_C
+    expected_measurement_C = v_zero
+    measured_value_C = meas_zero
+    measured_value_after_cal_c = meas_zero_cal
+
+    m_c = (measured_value_after_cal_c - measured_value_C)/(new_FIN_U_C - FIN_U_C_uncalibrated)
+
+    b_c = measured_value_C - (m_c*(FIN_U_C_uncalibrated))
+
+    desired_FIN_C = (expected_measurement_C +b_c) / m_c
+
+    print(desired_FIN_C)
+
+    NEW_FIN_U_C = desired_FIN_C
+    
+    pmu_ch.pmu_reg = pmu_reg_channel_off
+    k.smua.source.output = k.smua.OUTPUT_OFF
+
+    return NEW_FIN_U_C

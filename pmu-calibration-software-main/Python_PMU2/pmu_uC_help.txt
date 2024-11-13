@@ -1,0 +1,73 @@
+help
+  Print the list of registered commands
+
+pmu_trans  -d <data>
+  Write/read data <d>
+  -d, --dat=<data>  data to write/read
+
+pmu_wSCR  -d <data>
+  Write data <d> to system control register
+  -d, --dat=<data>  22-Bit data to write (B1...B0: don't care)
+
+pmu_rREG  -r <register>
+  Read register <r>
+  -r, --reg=<register>  register to read [SCR | CSR | ASR]
+
+pmu_wPMU  -c <channel> -d <data>
+  Write data <d> to pmu register and channel <c>
+  -c, --cha=<channel>  pmu channel(s) to write (4-Bit)
+  -d, --dat=<data>  22-Bit data to write (B5...B0: don't care)
+
+pmu_rPMU  -c <channel>
+  Read register <r>
+  -c, --cha=<channel>  pmu channel to write (4-Bit)
+
+pmu_wDAC  -c <channel> -a <address> -r <register> -d <data>
+  Write data <d> to register <r> for dac <a> and channel <c>
+  -c, --cha=<channel>  pmu channel(s) to write (4-Bit)
+  -a, --dac=<address>  dac address to write (6-Bit)
+  -r, --reg=<register>  dac register to write [M | C | X1]
+  -d, --dat=<data>  16-Bit data to write (D0: don't care for M register)
+
+pmu_rDAC  -c <channel> -a <address> -r <register>
+  Read register <r> for dac <a> and channel <c>
+  -c, --cha=<channel>  pmu channel to read (4-Bit)
+  -a, --dac=<address>  dac address to read (6-Bit)
+  -r, --reg=<register>  dac register to read [M | C | X1]
+
+adc_write  -r <register> -d <data> -l <length>
+  Write data <d> with <l> bits to register <r>
+  -r, --reg=<register>  register to write
+  -d, --dat=<data>  data to write
+  -l, --len=<length>  length of data in bits
+
+adc_read  -r <register> -l <length>
+  Write data with <l> bits from register <r>
+  -r, --reg=<register>  register to write
+  -l, --len=<length>  length of data in bits
+
+mem_read  -a <address> -l <length>
+  read -l <l> bits from memory address -a <a>
+  -a, --adr=<address>  address to read from
+  -l, --len=<length>  length of data in bits
+
+mem_write  -a <address> -d <data>
+  write data -d <d> into memory at address -a <a>
+  -a, --adr=<address>  address to write data
+  -d, --data=<data>  data to write into memory
+
+restart
+  Software reset of the chip
+
+memory
+  Get information about free memory
+
+print_mode  -m <print_mode>
+  Change Printmode -m <m>
+  -m, --mode=<print_mode>  set Print mode to [RAW | BIN | HEX | DEC]
+
+pmu_reset
+  set Reset of PMU
+
+pmu_release
+  unset Reset of PMU

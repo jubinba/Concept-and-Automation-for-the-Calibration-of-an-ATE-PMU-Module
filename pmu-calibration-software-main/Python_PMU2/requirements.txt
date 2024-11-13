@@ -1,0 +1,9 @@
+pyserial
+pyvisa
+ipykernel
+keithley2600
+gpib-ctypes
+pandas
+matplotlib
+tqdm
+si-prefix
